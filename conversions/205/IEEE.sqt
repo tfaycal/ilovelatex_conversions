@@ -1,0 +1,24 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{hyperref}
+
+\begin{document}
+
+\title{title}
+
+\author{
+\IEEEauthorblockN{First Author}
+\IEEEauthorblockA{Affiliation\\City, Country\\email@domain}
+\and ...
+}
+
+\maketitle
+
+\begin{abstract}
+abstract
+\end{abstract}
+
+\begin{IEEEkeywords}
+keywords
+\end{IEEEkeywords}
