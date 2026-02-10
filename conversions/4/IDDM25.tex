@@ -1,0 +1,508 @@
+\documentclass{ceurart}
+\usepackage{graphicx}
+\begin{document}
+\copyrightyear{}
+\copyrightclause{}
+\conference{IDDM-2025: 8th International Conference on Informatics Data-Driven Medicine}
+\title{Accurate Breast Lesion Segmentation in MRI via YOLO-Based Localization and Deep Learning}
+\author[1]{Faycal Touazi}[
+orcid={},
+email={f.touazi@univ-boumerdes.dz},
+]
+\author[1]{Djamel Gaceb}[
+orcid={},
+email={d.gaceb@univ-boumerdes.dz},
+]
+\author[1]{Tayeb Benzenati}[
+orcid={},
+email={t.benzenati@univ-boumerdes.dz},
+]
+\author[1]{Faycal Arioua}[
+orcid={},
+email={f.arioua@univ-boumerdes.dz},
+]
+\author[1]{Ibtissem Telkhoukh}[
+orcid={},
+email={i.telkhoukh@univ-boumerdes.dz},
+]
+\author[1]{Nour Elhouda Magaz}[
+orcid={},
+email={nh.magaz@univ-boumerdes.dz},
+]
+\cormark[1]
+\cortext[1]{Corresponding author: Faycal Touazi}
+\address[1]{LIMOSE Laboratory, Computer Science Department, University M’hamed Bougara, Independence Avenue, 35000 Boumerdes, Algeria}
+\begin{abstract}
+Breast cancer remains one of the most common and deadly malignancies among women worldwide. Accurate segmentation of breast tumors in magnetic resonance imaging (MRI) plays a vital role in reliable diagnosis and effective treatment planning. This study introduces a two-stage deep learning framework that combines lesion localization and semantic segmentation to improve tumor boundary delineation.
+\end{abstract}
+\begin{keywords}
+Breast tumor segmentation \sep magnetic resonance imaging \sep Deep Learning \sep YOLOv11-n \sep U-Net \sep A-UNet
+\end{keywords}
+\maketitle
+% ===== MAIN DOCUMENT CONTENT =====
+
+\section{Introduction}
+Breast cancer is an aggressive disease that affects millions of women globally. Since symptoms often appear at later stages, early detection and precise lesion localization are vital. Artificial Intelligence (AI), particularly deep learning, has shown promise in improving medical image analysis by enabling automatic and accurate interpretation of complex images \cite{ref1}.
+Deep learning, and specifically convolutional neural networks (CNNs), have become central to automated medical imaging. While many deep learning studies have focused on classifying or locating breast lesions in mammography \cite{ref2, ref3, ref4, ref5, ref6}, fewer have addressed the complex task of MRI segmentation, which is necessary for precise tumor outlining and surgical planning.
+Segmenting breast tumors in MRI is difficult due to variations in anatomy, diverse tumor shapes and sizes, and the presence of noise and artifacts. These challenges can lead to poor performance with traditional segmentation models. Additionally, medical datasets often have a class imbalance, with malignant lesions being less common, which can bias model predictions \cite{ref7, ref8, ref9, ref10, ref11}.
+Adding a lesion localization step before semantic segmentation could improve the accuracy and robustness of the process. By directing the model to specific areas of interest, this combined approach might reduce false positives and improve outlining performance. It also matches the clinical workflow, where radiologists first identify suspicious regions before detailing them. Focusing on specific regions can also lower the computational load and help address class imbalance issues common in medical imaging \cite{ref12}. Combining multiple models can also balance individual weaknesses, leading to more reliable predictions across different imaging conditions \cite{ref2}.
+This study presents a two-stage deep learning pipeline for breast cancer segmentation in MRI. The first stage locates lesions using a detection model, YOLOv11-n, and the second stage performs precise segmentation using advanced architectures. The framework is evaluated on the DUCK subset of the Duke Breast Cancer MRI dataset. To test how well it generalizes.
+The paper is organized as follows: Section 2 reviews related work on breast tumor segmentation in MRI, focusing on deep learning methods and their challenges. Section 3 describes the proposed method, including the two-stage framework, data preparation, and model architectures. Section 4 presents the experimental results and compares the different segmentation models. Finally, Section 5 summarizes the main findings, discusses limitations, and suggests directions for future work.
+\section{Related Work}
+Several recent studies have investigated segmentation and detection methods for breast cancer using magnetic resonance imaging (MRI), often using public datasets like the DUKE Breast MRI. This section reviews research on tumor segmentation and localization in DUKE MRI images.
+Gui et al. \cite{ref13} used a baseline Faster R-CNN and an improved version (BC R-CNN) for lesion localization in the DUKE dataset. Their enhanced model achieved an IoU of 70.57\% and sensitivity of 91.26\%, showing the benefit of bounding box refinement and post-processing.
+Raimundo et al. \cite{ref14} developed a Faster R-CNN-based method to detect breast cancer lesions in MRI. By filtering noisy annotations in a pre-processing step, they reached a patient-wise detection accuracy of 94.46\% and a maximum IoU of 69.08\% on the DUKE-Breast-Cancer-MRI dataset.
+Skorupko et al. \cite{ref15} proposed FednnU-Net, a federated learning version of nnU-Net for segmentation that preserves privacy. On the DUKE dataset from MAMA-MIA, their Federated Fingerprint Extraction method achieved a Dice score of 65.3\%, close to the performance of centralized training.
+Mythili et al. \cite{ref16} introduced BEFVBTS, a framework for 3D tumor segmentation in DCE-MRI that does not use deep learning. Tested on DUKE, QIN, and TCGA datasets, it achieved a Dice score of 81\% on the DUKE dataset, showing it can perform well without neural networks.
+In summary, models based on U-Net and its variations (e.g., U-Net++, nnU-Net, FednnU-Net) are now standard for breast MRI segmentation, often doing better than classical techniques because they can capture both global and detailed features. Datasets like DUKE, QIN Breast, and TCGA are widely used as public benchmarks for testing deep learning models in breast cancer diagnosis and segmentation (see Table \ref{tab:table1}).
+\begin{table}[htbp]
+\centering
+\caption{Comparison of deep learning and traditional approaches for breast cancer diagnosis using the DUKE MRI dataset}
+\label{tab:table1}
+\begin{tabular}{llll}
+Reference & Year & Task & Model \\
+\hline
+\end{tabular}
+\end{table}
+
+Model
+Results
+Gui et al. \cite{23}
+2022
+Detection
+BC R-CNN
+IoU 70.57\%, Sens 91.26\%
+Raimundo et al. \cite{24}
+2023
+Detection
+Faster R-CNN
+IoU 69.08\%, Acc 94.46\%
+Skorupko et al. \cite{25}
+2025
+Federated Segmentation
+FednnU-Net
+Dice 65.3\%
+Mythili et al. \cite{26}
+
+Mythili et al. \cite{26}
+Segmentation
+BEFVBTS (non-DL)
+Dice 81\%
+\section{Proposed Approach}
+This section describes two deep learning methods developed for the automatic segmentation of breast lesions in magnetic resonance imaging (MRI). The aim is to improve diagnostic accuracy and reliability by using both direct segmentation and a method guided by an initial detection step.
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\linewidth]{images/figure1.png}
+\caption{Figure 1: Overview of the proposed segmentation strategies for breast MRI. Approach 1 (right) performs direct semantic segmentation on full MRI slices using state-of-the-art architectures. Approach 2 (left) introduces a two-stage pipeline where lesion localization is first achieved via YOLOv11-n detection, followed by refined segmentation of the extracted region. This hybrid design aims to improve robustness and precision by focusing on regions of interest.}
+\label{fig:label}
+\end{figure)
+Approach 1: Direct semantic segmentation using deep neural networks such as U-Net++, U-Net3+, Attention U-Net, TransUNet.
+Approach 2: Detection-guided two-stage segmentation. In this approach, the YOLOv11-n model is first employed to localize regions of interest (ROIs) containing potential lesions.
+Several recent studies have demonstrated that modern YOLO architectures outperform traditional detection models such as Faster R-CNN and SSD in terms of both accuracy and inference speed \cite{27, 28}. Following the detection stage, the cropped ROIs are passed to the segmentation phase, which uses the same set of models described in Approach 1 (U-Net++, U-Net3+, TransUNet, and Attention U-Net) to perform fine-grained lesion segmentation.
+Both approaches were implemented and evaluated on the Breast Cancer MRI dataset (Duke subset from the MAMA-MIA benchmark), which contains high-resolution 3D breast MRI volumes with corresponding lesion annotations.
+\subsection{Approach 1: Direct Semantic Segmentation}
+This approach applies semantic segmentation directly to full breast MRI slices to produce pixel-level outlines of tumor regions. The goal is to create precise binary masks that separate lesion from non-lesion areas without any prior localization.
+We implemented and compared four segmentation models commonly used in medical imaging: U-Net++ \cite{29}, U-Net3+ \cite{30}, Attention U-Net \cite{31} and TransUNet \cite{32}. Each model was trained on annotated datasets and evaluated using standard metrics. The results serve as a baseline for comparison with the detection-guided approach (see Figure 1).
+\subsection{Approach 2: Detection-Guided Semantic Segmentation}
+
+\subsection{Approach 2: Detection-Guided Semantic Segmentation}
+The second approach uses a two-step process to focus segmentation on the tumor area identified in the original image. This strategy aims to lower false positives and increase precision.
+\begin{itemize}
+\item Lesion Detection: The YOLOv11-n-nano (YOLOv11-n-n) model, a lightweight detector with about 2 million parameters, is applied to the full MRI slice to find bounding boxes around suspicious lesions. It is designed for good accuracy with low computational cost and fast processing.
+\item Targeted Segmentation: The detected regions are cropped, resized, and fed into a segmentation model (the same ones used in Approach 1) to predict a detailed mask. This mask is then placed back into the original image.
+\end{itemize}
+This guided method helps the model concentrate on lesion-related pixels, which can improve performance when the background is noisy or complex (see Figure 1).
+\subsection{The DUKE Breast Cancer MRI Dataset}
+The Duke Breast MRI dataset is a collection from the Duke University Medical Center, containing breast dynamic contrast-enhanced (DCE) MRI volumes from 922 patients with confirmed breast cancer \cite{ref33}. The dataset includes 3D MRI scans from before and after contrast injection in .nii.gz format, along with lesion annotations from expert radiologists.
+A selected and annotated subset of 251 cases was later included in the international benchmark dataset MAMA-MIA (Multi-center, Multi-vendor, and Multi-sequence Magnetic Resonance Imaging dataset for breast cancer segmentation) \cite{ref34}. MAMA-MIA combines data from multiple institutions and has consistent annotations checked by 16 medical imaging experts. Including the Duke subset in MAMA-MIA adds to its clinical diversity and makes it more useful for testing deep learning models in breast cancer segmentation (see Figure 2).
+With its standard format, high-quality images, and expert annotations, the Duke dataset is a well-regarded resource for developing and testing AI methods for breast cancer diagnosis and tumor segmentation.
+All MRI slices were normalized to [0,1] by min-max scaling and cropped to the breast region. Gaussian denoising was applied to reduce background noise. Z-score standardization was performed across slices to ensure intensity consistency.
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\linewidth]{images/figure1.png}
+\caption{DUKE Breast MRI dataset examples: original DCE-MRI slices (top) and corresponding segmentation masks (bottom). Each column represents one case.}
+\label{fig:2}
+\end{figure}
+\subsection{Evaluation Metrics and Loss Functions}
+To measure the performance of our proposed method for breast cancer diagnosis, we used standard evaluation metrics, including accuracy, F1-score, sensitivity, and precision. These metrics helped assess both the detection and segmentation parts of the pipeline. We also selected suitable loss functions to guide model training.
+\subsubsection{Classification and Segmentation Metrics}
+To evaluate the performance of our models, we used standard metrics appropriate for both classification and segmentation tasks. For the classification models, the metrics include accuracy, precision, recall (sensitivity), specificity, and F1-score. These metrics provide a comprehensive assessment of the models’ ability to correctly identify positive and negative cases, balance sensitivity and specificity, and ensure robustness in clinical scenarios.
+For the tumor localization stage using YOLO, we report mean Average Precision at 50 (mAP@50) and over multiple thresholds (mAP@50:95) to quantify detection performance.
+
+and over multiple thresholds (mAP@50:95) to quantify detection performance.
+For the segmentation models (U-Net++, U-Net3+, Attention U-Net, TransUNet), we used Dice Similarity Coefficient (DSC) and Intersection over Union (IoU) as standard metrics to assess the overlap between predicted masks and ground truth.
+- Accuracy:
+- Precision:
+Accuracy =
+\[
+\frac{TP + TN}{TP + TN + FP + FN}
+\]
+Precision =
+\[
+\frac{TP}{TP + FP}
+\]
+- Recall (also called Sensitivity or True Positive Rate):
+Recall =
+\[
+\frac{TP}{TP + FN}
+\]
+Represents the counts of correct and incorrect classifications for binary classification problems.
+\subsection{Segmentation Metrics}
+- Intersection over Union (IoU):
+IoU($A$, $B$) =
+\[
+\frac{|A \cap B|}{|A \cup B|}
+\]
+\[
+\frac{TP}{TP + FP + FN}
+\]
+
+\[
+TP + FP + FN
+\]
+- Dice Coefficient (F1 Score):
+Dice($A$, $B$) =
+\[
+\frac{2|A \cap B|}{|A| + |B|}
+\]
+\[
+\frac{2TP}{2TP + FP + FN}
+\]
+- Relation between Dice and IoU:
+Dice =
+\[
+\frac{2 \cdot IoU}{1 + IoU}
+\]
+and
+IoU =
+\[
+\frac{Dice}{2 - Dice}
+\]
+\subsection{Segmentation Loss Functions}
+- Binary Cross Entropy (BCE):
+$\mathcal{L}_{BCE} =$
+\[
+- \frac{1}{N} \sum_{i=1}^{N}
+\]
+
+\[
+i=1
+\]
+\[
+\left[ t_{i} \log\left(y_{i}\right) + \left(1 - t_{i}\right) \log\left(1 - y_{i}\right)\right]
+\]
+where $t_{i}$ is the ground truth label, $y_{i}$ the predicted probability.
+- Dice Loss (derived from Dice coefficient):
+\[
+\mathcal{L}_{\text{Dice}} = 1 -
+\]
+- Focal Loss (to address class imbalance):
+\[
+2 \sum_{i} y_{i}t_{i} + \sum_{i}
+\]
+\[
+t_{i}
+\]
+\[
+\sum
+\]
+\[
+\mathcal{L}_{\text{Focal}} = -
+\]
+\[
+\sum_{i=1}^{N}
+\]
+\[
+\left(1 - y_{i}\right)^{\gamma} \cdot t_{i} \log\left(y_{i}\right)
+\]
+where $\gamma$ is the focusing parameter, and $y_{i}$ is the predicted probability.
+\subsection{YOLO Evaluation Metrics}
+- Average Precision (AP):
+- Mean Average Precision (mAP):
+\[
+\text{AP} =
+\]
+
+AP =
+\[
+\int_{0}^{1} \text{Precision}(r) \, dr
+\]
+mAP =
+\[
+\frac{1}{N} \sum_{i=1}^{N} \text{AP}_{i}
+\]
+- mAP@50:
+- mAP@50:95:
+mAP@50 = AP at IoU threshold of 0.50
+mAP@50:95 =
+\[
+\frac{1}{10} \sum_{\text{IoU}=0.50}^{0.95} \text{AP}_{\text{IoU}}
+\]
+
+\section{Experimental Results}
+In this section, we present the results obtained from our experiments, including both the direct segmentation approach and the two-stage detection-guided segmentation approach. Quantitative metrics and qualitative observations are provided to evaluate and compare the performance of the models.
+YOLOv11-n requires nearly 20$\times$ fewer parameters than Faster R-CNN and over 10$\times$ fewer than SSD, while offering a significantly faster inference time (12 ms per slice). This efficiency makes YOLOv11-n particularly suitable for real-time or near real-time breast MRI analysis in clinical environments, where rapid feedback and low latency are crucial \cite{27, 28}.
+\subsection{Training Hyperparameters}
+To ensure a fair and consistent evaluation, we carefully selected the hyperparameters for both the localization and segmentation stages.
+\begin{table}[htbp]
+\centering
+\caption{Hyperparameters used for training the YOLOv11-n localization model}
+\label{tab:hyperparameters_yolov11n}
+\begin{tabular}{ll}
+\hline
+Hyperparameter & Value \\
+\hline
+Model type & YOLOv11-n (nano) \\
+Number of parameters & $\sim$2 million \\
+Input image size & 640 $\times$ 640 \\
+Batch size & 16 \\
+Number of epochs & 50 \\
+Optimizer & Adam \\
+Learning rate & 1 $\times$ 10$^{-4}$ \\
+\hline
+\end{tabular}
+\end{table}
+For the semantic segmentation stage, all models were trained using the hyperparameters listed in Table \ref{tab:hyperparameters_segmentation}.
+\begin{table}[htbp]
+\centering
+\caption{Common hyperparameters used for training the segmentation models}
+\label{tab:hyperparameters_segmentation}
+\begin{tabular}{ll}
+\hline
+Hyperparameter & Value \\
+\hline
+Models used & U-Net++, U-Net3+, Attention U-Net, TransUNet \\
+Input image size & 224 $\times$ 224 \\
+Batch size & 64 \\
+Number of epochs & 25--30 \\
+Optimizer & Adam \\
+Learning rate & 1 $\times$ 10$^{-4}$ \\
+Loss function & Focal Dice Loss \\
+Loss parameters & $\alpha = 0.5, \gamma = 2, \text{smooth} = 1$ \\
+\hline
+\end{tabular}
+\end{table}
+The hyperparameters were chosen empirically to balance training stability and computational efficiency. Preliminary experiments showed that increasing the batch size beyond 64 did not improve the DSC, while learning rates higher than 1$\times$10$^{-4}$ led to unstable convergence.
+\subsection{Approach 1: Direct Semantic Segmentation}
+In this first approach, we tested the performance of four semantic segmentation models on breast MRI scans: U-Net++, U-Net3+, Attention U-Net, and TransUNet. The main goal was to accurately identify tumor areas at the pixel level. We present the results from each model, showing quantitative performance using metrics like Dice, IoU, and Recall, along with visual examples of the predicted masks. The comparison of the four models tested on the DUKE Breast Cancer MRI dataset shows clear
+
+In this first approach, we tested the performance of four semantic segmentation models on breast MRI scans: UNet++, UNet3+, Attention UNet, and TransUNet. The main goal was to accurately identify tumor areas at the pixel level. We present the results from each model, showing quantitative performance using metrics like Dice, IoU, and Recall, along with visual examples of the predicted masks. The comparison of the four models tested on the DUKE Breast Cancer MRI dataset shows clear differences in performance (see Table \ref{tab:4}).
+\begin{table}[htbp]
+\centering
+\caption{Comparison of segmentation model performance with the direct approach on the DUKE Breast Cancer MRI dataset}
+\label{tab:4}
+\begin{tabular}{llllll}
+\hline
+Model & DSC (\%) & IoU (\%) & Recall (\%) & Precision (\%) & Training Loss \\
+\hline
+TransUNet & 83.92 & 72.65 & 81.66 & 86.65 & 0.1613 \\
+Attention UNet & 83.49 & 72.07 & 79.31 & 88.71 & 0.1652 \\
+UNet++ & 87.73 & 78.36 & 89.31 & 86.40 & 0.1247 \\
+UNet3+ & 88.19 & 79.70 & 89.57 & 91.48 & 0.1302 \\
+\hline
+\end{tabular}
+\end{table}
+The results indicate that the UNet3+ model performed best, with the highest dice score (88.19\%) and highest IoU (79.70\%), as well as a high precision of 91.48\%. This model shows a strong ability to segment tumor regions accurately, with a good balance between sensitivity and specificity.
+UNet++ also delivered solid results, with the lowest loss value (0.1247) and a high recall (89.31\%), indicating stable learning and a good ability to find most regions of interest.
+TransUNet, which combines convolutions and transformers, achieved reasonable results, with a decent balance between precision (86.65\%) and recall (81.66\%), though it was slightly behind UNet3+ and UNet++.
+Finally, Attention UNet showed more moderate performance. Its dice score of 83.49\% and IoU of 72.07\% suggest acceptable segmentation, but it may be less precise at detecting fine edges or small lesions, possibly due to a less powerful architecture.
+
+Finally, Attention UNet showed more moderate performance. Its dice score of 83.49\% and IoU of 72.07\% suggest acceptable segmentation, but it may be less precise at detecting fine edges or small lesions, possibly due to a less powerful architecture.
+\subsection{4.2 Approach 2: Two-Stage Segmentation}
+\subsubsection{4.2.1 YOLOv11-n Detection Results}
+In the first stage of the proposed pipeline, lesions were detected using the YOLOv11-n model, a lightweight and high-speed variant of the YOLO family optimized for medical image analysis.
+The choice of YOLOv11-n over traditional two-stage detectors such as Faster R-CNN and SSD was motivated by its lower computational complexity (approximately 2 million parameters) and real-time inference capability, which are essential for integration into clinical workflows.
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\linewidth]{images/figure2.png}
+\caption{Example of tumor detection in breast MRI using YOLOv11-n}
+\label{fig:label}
+\end{figure}
+The detection performance was measured using standard metrics. The YOLOv11-n model achieved a mAP@50 of 88\% and a mAP@50:95 of 60\%, showing a strong ability to locate tumor regions in breast MRI images. Figure 3 shows an example of these results, with bounding boxes drawn around suspicious areas.
+\begin{table}[htbp]
+\centering
+\caption{Detection results of YOLOv11-n on the Breast MRI dataset}
+\label{tab:label}
+\begin{tabular}{ll}
+Metric & Value \\
+\hline
+mAP@50 & 88\% \\
+mAP@50:95 & 60\% \\
+\hline
+\end{tabular}
+\end{table}
+\subsubsection{4.2.2 Segmentation Results from Proposed Models}
+After detecting the lesions, we performed semantic segmentation on the identified tumor regions using four deep learning architectures: UNet++, UNet3+, TransUNet, and Attention UNet. Each model was evaluated using metrics including Dice Similarity Coefficient (DSC), Intersection over Union (IoU), Precision, Recall, Accuracy, and training loss (see Table 6 for summary). The segmentation metrics (Dice, IoU) evaluate boundary precision. High detection precision directly improves segmentation recall by reducing false positives in ROI extraction, making the metrics complementary in assessing overall system performance.
+UNet++ achieved the best overall results, with a dice score of 93.62\% and an IoU of 91.96\%. It also showed high recall (94.19\%) and precision (93.43\%), demonstrating its effectiveness at preserving spatial details through its dense connections and deep supervision.
+UNet3+ was close behind, with a dice score of 93.49\% and an IoU of 91.78\%, while achieving the highest precision (93.49\%) among all models. These results highlight its strength in combining features from multiple scales.
+TransUNet also showed strong segmentation performance, combining transformer-based encoding with convolutional decoding. It achieved a dice score of 93.48\%, an IoU of 91.79\%, and the highest recall (94.13\%), making it particularly good at identifying the full tumor area.
+Attention UNet produced competitive results as well, with a dice score of 93.44\%, an IoU of 91.74\%, precision of 93.43\%, and recall of 93.88\%. This shows the benefit of using attention gates to refine features and focus on relevant lesion areas.
+\begin{table}[htbp]
+\centering
+\caption{Performance comparison of the proposed segmentation models on breast tumor MRI using Approach 2}
+\label{tab:label}
+\begin{tabular}{lll}
+Model & Dice & IoU \\
+\hline
+UNet++ & 93.62\% & 91.96\% \\
+UNet3+ & 93.49\% & 91.78\% \\
+TransUNet & 93.48\% & 91.79\% \\
+Attention UNet & 93.44\% & 91.74\% \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Model}
+\begin{table}[htbp]
+\centering
+\caption{Model Performance}
+\label{tab:model-performance}
+\begin{tabular}{lllllll}
+Model & Dice (\%) & IoU (\%) & Precision (\%) & Recall (\%) & Accuracy (\%) & Training Loss \\
+\hline
+UNet++ & 93.62 & 91.97 & 94.19 & 93.88 & 93.82 & 0.063 \\
+UNet3+ & 93.49 & 91.78 & 93.92 & 93.82 & 93.82 & 0.067 \\
+TransUNet & 93.48 & 91.79 & 94.13 & 93.88 & 93.82 & 0.069 \\
+Attention UNet & 93.44 & 91.74 & 94.05 & 93.82 & 93.82 & 0.071 \\
+\end{tabular}
+\end{table}
+Overall, using a detection step before segmentation clearly improved accuracy. Among the models tested, UNet++ and TransUNet appear most suitable for clinical use due to their balance of accuracy, sensitivity, and stability.
+\subsection{Comparison and Discussion of Results}
+To see the effect of adding a detection step before segmentation, we compared each model's performance in two settings: (i) direct segmentation on full images, and (ii) detection-guided segmentation using YOLOv11-n. The goal was to determine whether isolating tumor regions first leads to better performance.
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\linewidth]{images/figure3.png}
+\caption{Segmentation outcomes obtained with the two-stage approach combining detection and segmentation (Approach 2)}
+\label{fig:segmentation-outcomes}
+\end{figure}
+As shown in Table 7, all models performed better when combined with a detection step. The Dice score improved by roughly 5 to 10 percentage points, and IoU increased similarly. The largest gains were for models that started with lower performance, like Attention UNet and TransUNet.
+In addition to better Dice and IoU scores, both precision and recall were higher with detection-guided segmentation. This means the models were better at finding lesion boundaries (higher recall) while making fewer false positives (higher precision).
+
+In addition to better Dice and IoU scores, both precision and recall were higher with detection-guided segmentation. This means the models were better at finding lesion boundaries (higher recall) while making fewer false positives (higher precision).
+In summary, adding a detection step before segmentation improved all models, both simple and complex. This strategy is particularly useful in medical imaging, where precision, sensitivity, and clarity are important. Figure 5 illustrates the correspondence and remaining discrepancies between the expert-annotated ground truth and the segmentation mask generated by UNet++.
+Figure 5: Visual comparison of segmentation results on the DUKE breast MRI dataset: (a) Ground Truth (Green), (b) Predicted Mask (Blue), (c) Overlay showing regions of accurate boundary alignment and residual differences.
+\begin{table}[htbp]
+\centering
+\caption{Performance comparison between segmentation approaches (without vs. with detection integration)}
+\label{tab:label}
+\begin{tabular}{llllll}
+Approach & Model & DSC (\%) & IoU (\%) & Precision (\%) & Recall (\%) \\
+\hline
+Without Detection & UNet++ & 87.73 & 78.36 & 79.70 & 72.07 \\
+Without Detection & UNet3+ & 88.19 & 79.70 & 72.07 & 72.65 \\
+Without Detection & Attention UNet & 83.49 & 91.96 & 91.78 & 91.74 \\
+Without Detection & TransUNet & 83.92 & 91.97 & 91.74 & 91.79 \\
+With Detection & UNet++ & 93.62 & 91.96 & 91.78 & 91.74 \\
+With Detection & UNet3+ & 93.49 & 91.97 & 91.74 & 91.79 \\
+With Detection & Attention UNet & 93.44 & 91.96 & 91.78 & 91.74 \\
+With Detection & TransUNet & 93.48 & 91.97 & 91.74 & 91.79 \\
+\end{tabular}
+\end{table}
+
+\section{5. Conclusion and Future Work}
+Accurate segmentation of breast tumors in MRI is essential for improving diagnosis and guiding treatment planning. In this study, we presented a two-stage deep learning approach that first identifies tumor regions and then performs detailed segmentation to accurately outline tumors in breast MRI scans. The pipeline uses the YOLOv11-n-nano model as a fast and efficient detector, followed by segmentation models such as U-Net3+, TransUNet, U-Net++, and Attention U-Net. Our results on the DUKE dataset (part of the MAMA-MIA benchmark) show that this approach outperforms existing methods.
+By guiding segmentation with detection, the framework reduces false positives and focuses the segmentation models on relevant areas. Among the models tested, U-Net++ achieved the best performance, with a Dice score of 93.63\% and an IoU of 91.96\%, surpassing previously reported results. TransUNet also performed strongly, highlighting the potential of combining convolutional and transformer features for medical imaging. Compared to other methods, including federated learning models such as FednnU-Net (65.3\% Dice), our two-stage approach delivers more accurate and consistent tumor delineation.
+This method provides a reliable and automated solution for breast tumor segmentation, reducing the need for manual annotations and supporting more consistent evaluations across radiologists. Improved segmentation can help clinicians make earlier diagnoses, plan treatments more effectively, and monitor tumor changes over time.
+Future work will focus on enhancing clinical applicability and robustness. We aim to extend the framework to process full 3D MRI volumes, allowing the model to leverage information across slices. Incorporating multiple imaging types (e.g., T1-weighted, T2-weighted, DCE-MRI) could provide richer diagnostic information. Additional evaluations on diverse public and private breast MRI datasets will test generalization across imaging protocols and patient populations. Finally, we plan to optimize the pipeline for faster processing and evaluate its integration into clinical workflows.
+\begin{table}[htbp]
+\centering
+\caption{Comparison of tumor segmentation performance on the Duke Breast MRI dataset}
+\label{tab:label}
+\begin{tabular}{lll}
+\hline
+Method / Model & Dice score (DSC) & IoU \\
+\hline
+FednnU-Net (Single-center) \cite{ref1} & 61.6\% & - \\
+FednnU-Net (AsymFedAvg) \cite{ref1} & 62.1\% & - \\
+FednnU-Net (FFE) \cite{ref1} & 65.3\% & - \\
+Gui et al. \cite{ref2} & - & 70.57\% \\
+Raimundo et al. \cite{ref3} & 69.08\% & - \\
+Mythili et al. \cite{ref4} & 81\% & - \\
+Attention UNet (ours) & 93.44\% & - \\
+TransUNet (ours) & 93.48\% & - \\
+UNet3+ (ours) & 93.49\% & - \\
+UNet++ (ours) & 93.62\% & 91.96\% \\
+\hline
+\end{tabular}
+\end{table}
+
+% ===== REFERENCES =====
+
+\begin{thebibliography}{99}
+
+\bibitem{ref1} World Health Organization, Breast cancer, WHO Fact Sheets (2021). URL: https://www.who.int/ news-room/fact-sheets/detail/breast-cancer.
+
+\bibitem{ref2} R. M. Mann, N. Cho, L. Moy, Breast mri: state of the art, Radiology 292 (2019) 520–536.
+
+\bibitem{ref3} N. Laribi, D. Gaceb, A. Benmira, S. Bakiri, A. Tadrist, A. Rezoug, A. Titoun, F. Touazi, A progressive deep transfer learning for the diagnosis of alzheimer’s disease on brain mri images, in: Artificial Intelligence: Theories and Applications: First International Conference, ICAITA 2022, Mascara, Algeria, November 7–8, 2022, Revised Selected Papers, Springer, 2023, pp. 65–78.
+
+\bibitem{ref4} S. Gassenmaier, T. Küstner, D. Nickel, J. Herrmann, R. Hoffmann, H. Almansour, S. Afat, K. Nikolaou, A. E. Othman, Deep learning applications in magnetic resonance imaging: has the future become present?, Diagnostics 11 (2021) 2181.
+
+\bibitem{ref5} D. J. Lin, P. M. Johnson, F. Knoll, Y. W. Lui, Artificial intelligence for mr image reconstruction: an overview for clinicians, Journal of Magnetic Resonance Imaging 53 (2021) 1015–1028.
+
+\bibitem{ref6} J. Liu, Y. Pan, M. Li, Z. Chen, L. Tang, C. Lu, J. Wang, Applications of deep learning to mri images: A survey, Big Data Mining and Analytics 1 (2018) 1–18.
+
+\bibitem{ref7} B. Abhisheka, S. K. Biswas, B. Purkayastha, A comprehensive review on breast cancer detection, classification and segmentation using deep learning, Archives of Computational Methods in Engineering 30 (2023) 5023–5052.
+
+\bibitem{ref8} D. F. Steiner, R. MacDonald, Y. Liu, P. Truszkowski, J. D. Hipp, C. Gammage, F. Thng, L. Peng, M. C. Stumpe, Impact of deep learning assistance on the histopathologic review of lymph nodes for metastatic breast cancer, The American journal of surgical pathology 42 (2018) 1636–1646.
+
+\bibitem{ref9} M. Khaled, F. Touazi, D. Gaceb, Improving breast cancer diagnosis in mammograms with progressive transfer learning and ensemble deep learning, Arabian Journal for Science and Engineering 50 (2025) 7697–7720.
+
+\bibitem{ref10} F. Touazi, D. Gaceb, M. Chirane, S. Hrzallah, Two-stage approach for semantic image segmentation of breast cancer: Deep learning and mass detection in mammographic images, in: N. Shakhovska, M. Kovác, I. Izonin, S. Chrétien (Eds.), Proceedings of the 6th International Conference on Informatics & Data-Driven Medicine, Bratislava, Slovakia, November 17-19, 2023, volume 3609 of CEUR Workshop Proceedings, ????, pp. 62–76.
+
+\bibitem{ref11} F. Touazi, D. Gaceb, N. Boudissa, S. Assas, Enhancing breast mass cancer detection through hybrid vit-based image segmentation model, in: International Conference on Computing Systems and Applications, Springer, 2024, pp. 126–135.
+
+\bibitem{ref12} F. Touazi, D. Gaceb, M. Chirane, S. Hrzallah, Two-stage approach for semantic image segmentation of breast cancer: Deep learning and mass detection in mammographic images., in: IDDM, 2023, pp. 62–76.
+
+\bibitem{ref13} S. Batchu, F. Liu, A. Amireh, J. Waller, M. Umair, A review of applications of machine learning in mammography and future challenges, Oncology 99 (2021) 483–490.
+
+\bibitem{ref14} A.-R. Wuni, B. Botwe, T. Akudjedu, Impact of artificial intelligence on clinical radiography practice: futuristic prospects in a low resource setting, Radiography 27 (2021) S69–S73.
+
+\bibitem{ref15} A. Yala, C. Lehman, T. Schuster, T. Portnoi, R. Barzilay, A deep learning mammography-based model for improved breast cancer risk prediction, Radiology 292 (2019) 60–66.
+
+\bibitem{ref16} X. Yu, Q. Zhou, S. Wang, Y.-D. Zhang, A systematic survey of deep learning in breast cancer, International Journal of Intelligent Systems 37 (2022) 152–216.
+
+\bibitem{ref17} A. N. Tarekegn, M. Giacobini, K. Michalak, A review of methods for imbalanced multi-label classification, Pattern Recognition 118 (2021) 107965.
+
+\bibitem{ref18} K. A. Abdullah, S. Marziali, M. Nanaa, L. Escudero Sánchez, N. R. Payne, F. J. Gilbert, Deep learning-based breast cancer diagnosis in breast mri: systematic review and meta-analysis, European Radiology (2025) 1–16.
+
+\bibitem{ref19} M. Rahimpour, M.-J. Saint Martin, F. Frouin, P. Akl, F. Orlhac, M. Koole, C. Malhaire, Visual ensemble selection of deep convolutional neural networks for 3d segmentation of breast tumors on dynamic contrast enhanced mri, European Radiology 33 (2023) 959–969.
+
+\bibitem{ref20} K. A. Abdullah, S. Marziali, M. Nanaa, L. Escudero Sánchez, N. R. Payne, F. J. Gilbert, Deep learning-based breast cancer diagnosis in breast mri: systematic review and meta-analysis, EuropeanRadiology (2025) 1–16.
+
+\bibitem{ref21} M. Rahimpour, M.-J. Saint Martin, F. Frouin, P. Akl, F. Orlhac, M. Koole, C. Malhaire, Visualensemble selection of deep convolutional neural networks for 3d segmentation of breast tumorson dynamic contrast enhanced mri, European Radiology 33 (2023) 959–969.
+
+\bibitem{ref22} S. Saikia, T. Si, D. Deb, K. Bora, S. Mallik, U. Maulik, Z. Zhao, Lesion detection in women breast’sdynamic contrast-enhanced magnetic resonance imaging using deep learning, Scientific reports13 (2023) 22555.
+
+\bibitem{ref23} C. S. P. S. Star, A. Milton, T. Inbamalar, An improved semantic segmentation for breast lesion fromdynamic contrast enhanced mri images using deep learning, International Journal of ImagingSystems and Technology 34 (2024) e23026.
+
+\bibitem{ref24} N. e. a. Tajbakhsh, Embracing imperfect datasets: A review of deep learning solutions for medical image segmentation, Medical Image Analysis 63 (2020) 101693.
+
+\bibitem{ref25} H. Gui, H. Jiao, L. Li, X. Jiang, T. Su, Z. Pang, Breast tumor detection and diagnosis using an improved faster r-cnn in dce-mri, Bioengineering 11 (2024) 1217.
+
+\bibitem{ref26} J. N. C. Raimundo, J. P. P. Fontes, L. G. M. Magalhães, M. A. G. Lopez, An innovative fasterr-cnn-based framework for breast cancer detection in mri, Journal of Imaging 9 (2023) 169. URL:https://doi.org/10.3390/jimaging9090169. doi:10.3390/jimaging9090169.
+
+\bibitem{ref27} G. Skorupko, F. Avgoustidis, C. Martín-Isla, L. Garrucho, D. A. Kessler, E. Ruiz Pujadas, O. Díaz,M. Bobowicz, K. Gwoździewicz, X. Bargalló, P. Jaruševičius, K. Kushibar, K. Lekadir, Federatednnu-net for privacy-preserving medical image segmentation, arXiv preprint arXiv:2503.02549(2025). URL: https://arxiv.org/abs/2503.02549, under review.
+
+\bibitem{ref28} P. Babu, M. Asaithambi, S. M. Suriyakumar, Automated 3d tumor segmentation from breastdce-mri using energy-tuned minimax optimization, IEEE Access (2024). doi:10.1109/ACCESS.2024.3417488, preprint (accepted Jan 2024).
+
+\bibitem{ref29} W. A. Shobaki, M. Milanova, A comparative study of yolo, ssd, faster r-cnn, and more for optimized eye-gaze writing, Sci 7 (2025) 47.
+
+\bibitem{ref30} V. Vilcapoma, A. Gonzales, E. Gutierrez, Comparison of faster r-cnn, yolo, and ssd for object detection in medical imaging, Sensors 24 (2024) 6053. doi:10.3390/s24186053.
+
+\bibitem{ref31} Z. Zhou, M. M. Rahman Siddiquee, N. Tajbakhsh, J. Liang, Unet++: A nested u-net architecture for medical image segmentation, in: Deep learning in medical image analysis and multimodal learning for clinical decision support: 4th international workshop, DLMIA 2018, and 8th international workshop, ML-CDS 2018, held in conjunction with MICCAI 2018, Granada, Spain, September 20, 2018, proceedings 4, Springer, 2018, pp. 3–11.
+
+\bibitem{ref32} H. Huang, L. Lin, R. Tong, H. Hu, Q. Zhang, Y. Iwamoto, X. Han, Y.-W. Chen, J. Wu, Unet 3+: A full-scale connected unet for medical image segmentation, in: ICASSP 2020-2020 IEEE international conference on acoustics, speech and signal processing (ICASSP), IEEE, 2020, pp. 1055–1059.
+
+\bibitem{ref33} O. Oktay, J. Schlemper, L. L. Folgoc, M. Lee, M. Heinrich, K. Misawa, K. Mori, S. McDonagh, N. Y. Hammerla, B. Kainz, et al., Attention u-net: Learning where to look for the pancreas, arXiv preprint arXiv:1804.03999 (2018).
+
+\bibitem{ref34} J. Chen, Y. Lu, Q. Yu, X. Luo, E. Adeli, Y. Wang, L. Lu, A. L. Yuille, Y. Zhou, Transunet: Transformers make strong encoders for medical image segmentation, arXiv preprint arXiv:2102.04306 (2021).
+
+\bibitem{ref35} A. Saha, M. R. Harowicz, L. J. Grimm, J. Weng, E. H. Cain, C. E. Kim, S. V. Ghate, R. Walsh, M. A. Mazurowski, Dynamic contrast-enhanced magnetic resonance images of breast cancer patients with tumor locations [data set], The Cancer Imaging Archive 10 (2021).
+
+\bibitem{ref36} L. Garrucho, K. Kushibar, C.-A. Reidel, S. Joshi, R. Osuala, A. Tsirikoglou, M. Bobowicz, J. d. Riego, A. Catanese, K. Gwoździewicz, M.-L. Cosaka, P. M. Abo-Elhoda, S. W. Tantawy, S. S. Sakrana, N. O. Shawky-Abdelfatah, A. M. A. Salem, A. Kozana, E. Divjak, G. Ivanac, K. Nikiforaki, M. E. Klontzas, R. García-Dosdá, M. Gulsun-Akpinar, O. Lafcı, R. Mann, C. Martín-Isla, F. Prior, K. Marias, M. P. A. Starmans, F. Strand, O. Díaz, L. Igual, K. Lekadir, A large-scale multicenter breast cancer dce-mri benchmark dataset with expert segmentations, Scientific Data 12 (2025) 453. doi:10.1038/s41597-025-04707-4.
+
+\bibitem{ref37} M. P. A. Starmans, F. Strand, O. Díaz, L. Igual, K. Lekadir, A large-scale multicenter breastcancer dce-mri benchmark dataset with expert segmentations, Scientific Data 12 (2025) 453.doi:10.1038/s41597-025-04707-4.
+
+\end{thebibliography}
+\end{document}
